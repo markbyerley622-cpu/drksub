@@ -3,6 +3,10 @@
 A static intake form styled to match `liquidity.drkgroup.xyz`. No build step, no framework,
 no server. Three files plus fonts.
 
+One question per screen: the page itself never scrolls, and each step fades and rises into
+place as you move through it. A step taller than the viewport scrolls inside itself rather
+than stretching the page.
+
 ```
 index.html   markup
 styles.css   design tokens lifted from the deck (#070908 / #65e681 / Inter + Space Grotesk)
@@ -73,9 +77,10 @@ For `submit.drkgroup.xyz`, add a CNAME in your DNS to whichever host you pick.
 
 Every keystroke is debounced and written to `localStorage` under `drk-submission-v1`.
 Close the tab, lose signal, come back tomorrow — everything is still there, including the
-chain and chip selections. The draft is cleared only on a successful send or when the
-user hits **Clear form**. If `localStorage` is unavailable (private browsing), the form
-degrades quietly rather than erroring.
+chain and chip selections *and the step they had reached*, so they reopen on the question
+they left off at rather than back at the start. The draft is cleared only on a successful
+send or when the user hits **Clear form**. If `localStorage` is unavailable (private
+browsing), the form degrades quietly rather than erroring.
 
 A `Draft saved` indicator flashes in the header so people can see it happening.
 
@@ -102,7 +107,9 @@ requests and nothing to 404.
 
 - Mobile-first, tested down to 380px; safe-area insets handled for notched phones.
 - Keyboard accessible: the tile and chip groups are real ARIA radiogroups with arrow-key
-  navigation and roving tabindex.
-- Honeypot field for bots.
+  navigation and roving tabindex. <kbd>Enter</kbd> advances a step.
+- Honeypot field for bots. It is pinned with `top:0` — left to its static position it sits
+  below the full-height deck and adds ~30px to the document, which breaks the no-scroll rule.
+- Icons: `favicon.svg` / `favicon-32.png` / `favicon.ico` / `apple-touch-icon.png`, all DRK mark.
 - Respects `prefers-reduced-motion`.
 - Fonts are self-hosted, so no Google Fonts call and no layout shift.

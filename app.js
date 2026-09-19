@@ -57,6 +57,9 @@
   var form = $('#form');
   var state = { chain: '', launchpad: '', fdv: '', first: '', marketing: '', vertical: '' };
 
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var canHover = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
   /* ------------------------------------------------------------- renderers */
   function renderChains() {
     $('#chain-grid').innerHTML = CHAINS.map(function (c) {
@@ -113,6 +116,11 @@
 
   function groupKey(group) { return group === 'launchpad' ? 'launchpad' : group; }
 
+  /* Steps whose only input is the choice itself advance on their own — the
+     flow keeps moving without a Next click. Picking "Other" opens a text
+     field, so those stay put. */
+  var AUTO_ADVANCE = { chain: 2, launchpad: 3 };
+
   document.addEventListener('click', function (e) {
     var btn = e.target.closest('[data-group]');
     if (!btn) return;
@@ -124,7 +132,15 @@
     clearBlockError(group);
     save();
     update();
+
+    var step = AUTO_ADVANCE[group];
+    if (step && step === current && btn.dataset.value !== 'Other') {
+      clearTimeout(autoTimer);
+      autoTimer = setTimeout(function () { if (current === step) go(current + 1, 1); }, 340);
+    }
   });
+
+  var autoTimer;
 
   document.addEventListener('keydown', function (e) {
     var btn = e.target.closest('[data-group]');
@@ -172,22 +188,214 @@
     }
   }
 
-  /* ------------------------------------------------------------ progress */
-  var BLOCK_DONE = [
-    function () { return val('project_name') && val('contact_name') && validEmail(val('email')); },
-    function () { return !!state.chain && (state.chain !== 'Other' || !!val('chain_other')); },
-    function () { return !!state.launchpad && (state.launchpad !== 'Other' || !!val('launchpad_other')); },
-    function () { return !!state.fdv; },
-    function () { return !!state.first && (state.first === 'Yes' || !!val('prior_products') || $('[name=prior_private]').checked); },
-    function () { return !!state.marketing && val('gtm').length >= 20; },
-    function () { return !!state.vertical && (state.vertical !== 'Other' || !!val('vertical_other')); }
-  ];
+  /* ==========================================================================
+     THE FLOW — one step on screen at a time. Step 0 is the intro; 1-7 are the
+     questions; 'done' and 'fallback' are the two endings.
+     ========================================================================== */
 
-  function update() {
-    var done = BLOCK_DONE.filter(function (f) { try { return f(); } catch (_) { return false; } }).length;
-    $('#progress-fill').style.width = (done / BLOCK_DONE.length * 100) + '%';
-    $('#progress-label').textContent = done + ' / ' + BLOCK_DONE.length + ' complete';
+  var LAST = 7;
+  var steps = $$('.step', $('#steps'));
+  var byName = {};
+  steps.forEach(function (s) { byName[s.dataset.step] = s; });
+
+  var current = 0;                        // 0 = intro
+  var ended = false;                      // on done/fallback, nav is gone
+
+  function stepEl(n) { return byName[n === 0 ? 'intro' : String(n)]; }
+
+  function go(n, dir) {
+    if (ended) return;
+    n = Math.max(0, Math.min(LAST, n));
+    if (n === current) return;
+
+    var from = stepEl(current);
+    var to = stepEl(n);
+    if (!to) return;
+
+    // Going forward, the old step lifts out of frame; going back it drops.
+    from.classList.remove('is-active');
+    from.classList.toggle('is-past', dir > 0);
+    to.classList.remove('is-past');
+    to.classList.add('is-active');
+    to.scrollTop = 0;
+
+    current = n;
+    save();
+    update();
+    focusStep(to);
   }
+
+  function focusStep(el) {
+    // On a phone, auto-focusing a text input throws the keyboard up over the
+    // question. Only do it where there is a real pointer.
+    var target = canHover ? $('input:not([type=hidden]), textarea', el) : null;
+    if (target && target.offsetParent !== null && !target.disabled) {
+      target.focus({ preventScroll: true });
+      return;
+    }
+    var head = $('.ask, h1', el);
+    if (head) {
+      head.setAttribute('tabindex', '-1');
+      head.focus({ preventScroll: true });
+    }
+  }
+
+  function showEnding(which) {
+    var from = stepEl(current);
+    if (from) { from.classList.remove('is-active'); from.classList.add('is-past'); }
+    var to = byName[which];
+    to.classList.remove('is-past');
+    to.classList.add('is-active');
+    to.scrollTop = 0;
+    ended = true;
+    $('#nav').hidden = true;
+    $('#progress-fill').style.width = '100%';
+    $('#progress-label').textContent = which === 'done' ? 'Sent' : 'Almost';
+    focusStep(to);
+  }
+
+  /* ---- per-step validation ------------------------------------------------
+     Each entry returns a list of problems for that step only. The first one
+     decides which field gets focus and the message under the question. */
+  var RULES = {
+    1: function () {
+      var bad = [];
+      [['project_name', 'Required'], ['contact_name', 'Required']].forEach(function (p) {
+        var el = form.elements[p[0]];
+        if (!val(p[0])) bad.push({ el: el, msg: p[1] });
+      });
+      var em = form.elements.email;
+      if (!val('email')) bad.push({ el: em, msg: 'Required' });
+      else if (!validEmail(val('email'))) bad.push({ el: em, msg: 'Check this email address' });
+      return bad;
+    },
+    2: function () {
+      if (!state.chain) return [{ block: 'chain', msg: 'Pick a chain' }];
+      if (state.chain === 'Other' && !val('chain_other')) return [{ el: form.elements.chain_other, msg: 'Required' }];
+      return [];
+    },
+    3: function () {
+      if (!state.launchpad) return [{ block: 'pad', msg: 'Pick a launch venue' }];
+      if (state.launchpad === 'Other' && !val('launchpad_other')) return [{ el: form.elements.launchpad_other, msg: 'Required' }];
+      return [];
+    },
+    4: function () {
+      return state.fdv ? [] : [{ block: 'fdv', msg: 'Pick a starting FDV' }];
+    },
+    5: function () {
+      if (!state.first) return [{ block: 'first', msg: 'Let us know' }];
+      if (state.first === 'No' && !val('prior_products') && !$('[name=prior_private]').checked) {
+        return [{ el: form.elements.prior_products, msg: 'Tell us briefly, or tick the box below' }];
+      }
+      return [];
+    },
+    6: function () {
+      var bad = [];
+      if (!state.marketing) bad.push({ block: 'mkt', msg: 'Let us know how marketing is run' });
+      var g = val('gtm');
+      if (!g) bad.push({ el: form.elements.gtm, msg: 'Required' });
+      else if (g.length < 20) bad.push({ el: form.elements.gtm, msg: 'A sentence or two, please' });
+      return bad;
+    },
+    7: function () {
+      if (!state.vertical) return [{ block: 'vert', msg: 'Pick a vertical' }];
+      if (state.vertical === 'Other' && !val('vertical_other')) return [{ el: form.elements.vertical_other, msg: 'Required' }];
+      return [];
+    }
+  };
+
+  function checkStep(n) { return RULES[n] ? RULES[n]() : []; }
+
+  /* Paint a step's problems and put the cursor on the first one. */
+  function flagStep(n) {
+    var bad = checkStep(n);
+    clearStepErrors(n);
+    bad.forEach(function (b) {
+      if (b.el) fieldError(b.el, b.msg);
+      else blockError(b.block, b.msg);
+    });
+    if (bad.length) {
+      var first = bad[0];
+      var el = first.el || $('#' + first.block + '-grid');
+      var host = stepEl(n);
+      if (host) host.classList.add('shake');
+      setTimeout(function () { if (host) host.classList.remove('shake'); }, 420);
+      if (el && el.focus) el.focus({ preventScroll: true });
+      if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
+      status(bad[0].msg, true);
+    } else {
+      status('', false);
+    }
+    return bad;
+  }
+
+  function clearStepErrors(n) {
+    var host = stepEl(n);
+    if (!host) return;
+    $$('.err', host).forEach(function (e) { e.textContent = ''; });
+    $$('[aria-invalid=true]', host).forEach(function (e) { e.setAttribute('aria-invalid', 'false'); });
+  }
+
+  function status(msg, bad) {
+    var el = $('#form-status');
+    el.textContent = msg || '';
+    el.classList.toggle('bad', !!bad);
+  }
+
+  /* ---- nav ---- */
+  function update() {
+    var pct = current === 0 ? 0 : (current / LAST) * 100;
+    $('#progress-fill').style.width = pct + '%';
+    $('#progress-label').textContent = current === 0
+      ? 'Ready'
+      : pad2(current) + ' / ' + pad2(LAST);
+
+    var back = $('#back');
+    if (current === 0) back.setAttribute('data-off', '');
+    else back.removeAttribute('data-off');
+
+    $('#next-text').textContent = current === 0 ? 'Start'
+      : current === LAST ? 'Submit to DRK'
+      : 'Continue';
+
+    var hint = $('#nav-hint');
+    if (hint) hint.hidden = current === 0;
+  }
+
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+
+  function next() {
+    if (ended) return;
+    if (current === 0) { go(1, 1); return; }
+    if (flagStep(current).length) return;
+    if (current === LAST) { submit(); return; }
+    go(current + 1, 1);
+  }
+
+  function back() {
+    if (ended || current === 0) return;
+    status('', false);
+    go(current - 1, -1);
+  }
+
+  $('#next').addEventListener('click', next);
+  $('#back').addEventListener('click', back);
+
+  /* Enter advances, except inside a textarea where it should make a newline
+     (Ctrl/Cmd+Enter advances from there). */
+  document.addEventListener('keydown', function (e) {
+    if (ended) return;
+    if (e.key === 'Enter') {
+      var t = e.target;
+      // In a textarea Enter means newline; Ctrl/Cmd+Enter moves on.
+      if (t && t.tagName === 'TEXTAREA' && !(e.ctrlKey || e.metaKey)) return;
+      // On a button or link, let the browser click it — that already does
+      // the right thing for Next, Back, Clear, chips and tiles.
+      if (t && (t.tagName === 'BUTTON' || t.tagName === 'A')) return;
+      e.preventDefault();
+      next();
+    }
+  });
 
   function val(name) { var el = form.elements[name]; return el && el.value ? el.value.trim() : ''; }
   function validEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v); }
@@ -198,7 +406,7 @@
     clearTimeout(saveTimer);
     saveTimer = setTimeout(function () {
       try {
-        var data = { _state: state, fields: {} };
+        var data = { _state: state, _step: current, fields: {} };
         $$('input,textarea', form).forEach(function (el) {
           if (el.name && el.name !== '_gotcha') data.fields[el.name] = el.type === 'checkbox' ? el.checked : el.value;
         });
@@ -216,6 +424,7 @@
     el._t = setTimeout(function () { el.classList.remove('on'); }, 1800);
   }
 
+  var restoredStep = 0;
   function restore() {
     var raw;
     try { raw = localStorage.getItem(CONFIG.STORAGE_KEY); } catch (_) { return; }
@@ -223,6 +432,7 @@
     var data;
     try { data = JSON.parse(raw); } catch (_) { return; }
     if (data._state) Object.keys(state).forEach(function (k) { if (data._state[k]) state[k] = data._state[k]; });
+    if (typeof data._step === 'number') restoredStep = Math.max(0, Math.min(LAST, data._step));
     if (data.fields) {
       Object.keys(data.fields).forEach(function (k) {
         var el = form.elements[k];
@@ -237,6 +447,7 @@
 
   /* ------------------------------------------------------------ validation */
   function fieldError(el, msg) {
+    if (!el) return;
     var wrap = el.closest('.field') || el.parentElement;
     var slot = wrap && $('.err', wrap);
     if (slot) slot.textContent = msg || '';
@@ -247,37 +458,6 @@
   function clearBlockError(group) {
     var map = { chain: 'chain', launchpad: 'pad', fdv: 'fdv', first: 'first', marketing: 'mkt', vertical: 'vert' };
     if (map[group]) blockError(map[group], '');
-  }
-
-  function validate() {
-    var bad = [];
-
-    $$('[data-required]', form).forEach(function (el) {
-      if (el.disabled || el.offsetParent === null) return;
-      var v = el.value.trim();
-      if (!v) { fieldError(el, 'Required'); bad.push(el); }
-      else if (el.type === 'email' && !validEmail(v)) { fieldError(el, 'Check this email address'); bad.push(el); }
-      else if (el.name === 'gtm' && v.length < 20) { fieldError(el, 'A sentence or two, please'); bad.push(el); }
-      else fieldError(el, '');
-    });
-
-    [['chain', 'chain', 'Pick a chain'],
-     ['launchpad', 'pad', 'Pick a launch venue'],
-     ['fdv', 'fdv', 'Pick a starting FDV'],
-     ['first', 'first', 'Let us know'],
-     ['marketing', 'mkt', 'Let us know how marketing is run'],
-     ['vertical', 'vert', 'Pick a vertical']
-    ].forEach(function (t) {
-      if (!state[t[0]]) { blockError(t[1], t[2]); bad.push($('#' + t[1] + '-grid') || $('#' + t[1] + '-err')); }
-      else blockError(t[1], '');
-    });
-
-    ['chain_other', 'launchpad_other', 'vertical_other'].forEach(function (n) {
-      var el = form.elements[n];
-      if (el && el.offsetParent !== null && !el.value.trim()) { fieldError(el, 'Required'); bad.push(el); }
-    });
-
-    return bad;
   }
 
   /* --------------------------------------------------------------- payload */
@@ -319,36 +499,28 @@
   }
 
   /* ---------------------------------------------------------------- submit */
-  form.addEventListener('submit', function (e) {
-    e.preventDefault();
+  function submit() {
     if (form.elements._gotcha.value) return; // bot
 
-    var bad = validate();
-    var status = $('#form-status');
-
-    if (bad.length) {
-      status.textContent = bad.length + ' field' + (bad.length > 1 ? 's need' : ' needs') + ' attention.';
-      status.classList.add('bad');
-      var first = bad[0];
-      if (first && first.scrollIntoView) {
-        first.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        if (first.focus) setTimeout(function () { first.focus({ preventScroll: true }); }, 300);
+    // Last guard: something may have been cleared on an earlier step.
+    for (var n = 1; n <= LAST; n++) {
+      if (checkStep(n).length) {
+        go(n, n < current ? -1 : 1);
+        setTimeout(function () { flagStep(current); }, 260);
+        return;
       }
-      return;
     }
-
-    status.textContent = '';
-    status.classList.remove('bad');
 
     var rows = collect();
     var text = asText(rows);
-    var btn = $('#submit');
+    var btn = $('#next');
 
     if (!CONFIG.WEB3FORMS_KEY) { showFallback(rows, text); return; }
 
     btn.disabled = true;
     btn.classList.add('is-sending');
-    $('.submit-text', btn).textContent = 'Sending';
+    $('#next-text').textContent = 'Sending';
+    status('', false);
 
     var payload = { access_key: CONFIG.WEB3FORMS_KEY, subject: 'DRK submission — ' + val('project_name'), from_name: 'DRK Submission Form', replyto: val('email') };
     rows.forEach(function (r) { payload[r[0]] = r[1]; });
@@ -362,33 +534,24 @@
       .then(function (r) {
         if (!r.success) throw new Error(r.message || 'rejected');
         wipe();
-        showDone();
+        showEnding('done');
       })
       .catch(function () { showFallback(rows, text); })
       .finally(function () {
         btn.disabled = false;
         btn.classList.remove('is-sending');
-        $('.submit-text', btn).textContent = 'Submit to DRK';
+        $('#next-text').textContent = 'Submit to DRK';
       });
-  });
-
-  function showDone() {
-    form.hidden = true;
-    $('.hero').hidden = true;
-    $('#fallback').hidden = true;
-    $('#done').hidden = false;
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
+  form.addEventListener('submit', function (e) { e.preventDefault(); next(); });
+
   function showFallback(rows, text) {
-    form.hidden = true;
-    $('.hero').hidden = true;
     $('#summary').textContent = text;
     $('#mailto-link').href = 'mailto:' + CONFIG.INBOX +
       '?subject=' + encodeURIComponent('DRK submission — ' + val('project_name')) +
       '&body=' + encodeURIComponent(text);
-    $('#fallback').hidden = false;
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    showEnding('fallback');
   }
 
   $('#copy').addEventListener('click', function () {
@@ -408,11 +571,14 @@
 
   $('#again').addEventListener('click', function () { wipe(); location.reload(); });
 
-  $('#clear').addEventListener('click', function () {
+  function clearAll() {
     if (!confirm('Clear everything you have entered?')) return;
     wipe();
     location.reload();
-  });
+  }
+  $('#clear').addEventListener('click', clearAll);
+  var clearM = $('#clear-m');
+  if (clearM) clearM.addEventListener('click', clearAll);
 
   /* ----------------------------------------------------------------- wire */
   form.addEventListener('input', function (e) {
@@ -420,15 +586,16 @@
       var c = $('[data-count-for=gtm]');
       if (c) c.textContent = e.target.value.length;
     }
-    if (e.target.getAttribute && e.target.getAttribute('aria-invalid') === 'true') fieldError(e.target, '');
+    if (e.target.getAttribute && e.target.getAttribute('aria-invalid') === 'true') {
+      fieldError(e.target, '');
+      status('', false);
+    }
     save();
-    update();
   });
 
   form.addEventListener('change', function (e) {
     if (e.target.name === 'prior_private') toggleConditionals();
     save();
-    update();
   });
 
   /* ------------------------------------------------------------------ init */
@@ -445,5 +612,12 @@
 
   var gtm = form.elements.gtm;
   if (gtm && gtm.value) $('[data-count-for=gtm]').textContent = gtm.value.length;
+
+  // Open on the step they left off at, with everything before it marked past.
+  current = restoredStep;
+  steps.forEach(function (s) { s.classList.remove('is-active', 'is-past'); });
+  for (var i = 0; i < current; i++) { var p = stepEl(i); if (p) p.classList.add('is-past'); }
+  var start = stepEl(current);
+  if (start) start.classList.add('is-active');
   update();
 })();
