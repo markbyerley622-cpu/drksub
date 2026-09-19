@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>DRK — Project Submission</title>
+<meta name="description" content="Submit your project to DRK. Launch design, capital discipline, room to grow.">
+<meta name="theme-color" content="#070908">
+<meta property="og:title" content="DRK — Project Submission">
+<meta property="og:description" content="Own the liquidity. Manage the cycle.">
+<meta property="og:type" content="website">
+<link rel="icon" href="assets/favicon.svg">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip-link" href="#form">Skip to form</a>
+
+<div class="progress-rail" role="presentation"><i id="progress-fill"></i></div>
+
+<header class="topbar">
+  <a class="brand-link" href="https://drkgroup.xyz" aria-label="DRK">
+    <img class="brand" src="assets/drk-wordmark.svg" alt="DRK" width="130" height="31">
+  </a>
+  <div class="topbar-right">
+    <span id="progress-label">0 / 7 complete</span>
+    <span class="save-state" id="save-state" aria-live="polite"></span>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <p class="eyebrow">Project submission</p>
+    <h1>Tell us how you<br>intend to <em>launch.</em></h1>
+    <p class="hero-sub">A short intake so we can assess fit, structure and timing. Seven sections, roughly three minutes. Your answers save to this browser as you go.</p>
+  </section>
+
+  <form id="form" novalidate autocomplete="on">
+
+    <fieldset class="block" data-block="1">
+      <legend><span class="idx">01</span><span class="legend-text">Who we are speaking with</span></legend>
+      <div class="grid-2">
+        <label class="field">
+          <span class="label">Project name <b>*</b></span>
+          <input type="text" name="project_name" data-required placeholder="e.g. Helios Protocol" autocomplete="organization">
+          <span class="err"></span>
+        </label>
+        <label class="field">
+          <span class="label">Your name <b>*</b></span>
+          <input type="text" name="contact_name" data-required placeholder="Full name" autocomplete="name">
+          <span class="err"></span>
+        </label>
+        <label class="field">
+          <span class="label">Email <b>*</b></span>
+          <input type="email" name="email" data-required placeholder="you@project.xyz" autocomplete="email" inputmode="email">
+          <span class="err"></span>
+        </label>
+        <label class="field">
+          <span class="label">Telegram or X <span class="opt">optional</span></span>
+          <input type="text" name="handle" placeholder="@handle">
+        </label>
+        <label class="field span-2">
+          <span class="label">Website or deck <span class="opt">optional</span></span>
+          <input type="url" name="website" placeholder="https://" inputmode="url">
+        </label>
+      </div>
+    </fieldset>
+
+    <fieldset class="block" data-block="2">
+      <legend><span class="idx">02</span><span class="legend-text">Which chain are you launching on?</span></legend>
+      <div class="chain-grid" role="radiogroup" aria-label="Chain" id="chain-grid"></div>
+      <label class="field other-field" id="chain-other-wrap" hidden>
+        <span class="label">Which chain? <b>*</b></span>
+        <input type="text" name="chain_other" placeholder="Chain name">
+        <span class="err"></span>
+      </label>
+      <span class="err block-err" id="chain-err"></span>
+    </fieldset>
+
+    <fieldset class="block" data-block="3">
+      <legend><span class="idx">03</span><span class="legend-text">Launchpad or launch venue</span></legend>
+      <p class="block-hint" id="pad-hint">Pick a chain first and we will show the venues we see most often there.</p>
+      <div class="chip-grid" role="radiogroup" aria-label="Launchpad" id="pad-grid"></div>
+      <label class="field other-field" id="pad-other-wrap" hidden>
+        <span class="label">Tell us where <b>*</b></span>
+        <input type="text" name="launchpad_other" placeholder="Venue, platform, or undecided">
+        <span class="err"></span>
+      </label>
+      <span class="err block-err" id="pad-err"></span>
+    </fieldset>
+
+    <fieldset class="block" data-block="4">
+      <legend><span class="idx">04</span><span class="legend-text">Starting FDV</span></legend>
+      <p class="block-hint">Fully diluted valuation at launch, in USD.</p>
+      <div class="chip-grid" role="radiogroup" aria-label="Starting FDV" id="fdv-grid"></div>
+      <label class="field narrow">
+        <span class="label">Exact figure <span class="opt">optional</span></span>
+        <div class="money"><i>$</i><input type="text" name="fdv_exact" placeholder="12,500,000" inputmode="numeric"></div>
+      </label>
+      <span class="err block-err" id="fdv-err"></span>
+    </fieldset>
+
+    <fieldset class="block" data-block="5">
+      <legend><span class="idx">05</span><span class="legend-text">Is this your first project?</span></legend>
+      <div class="chip-grid binary" role="radiogroup" aria-label="First project" id="first-grid"></div>
+      <div id="prior-wrap" hidden>
+        <label class="field">
+          <span class="label">What else have you shipped?</span>
+          <textarea name="prior_products" rows="4" placeholder="Products, tickers, roles, outcomes — as much or as little as you want."></textarea>
+        </label>
+        <label class="check">
+          <input type="checkbox" name="prior_private" value="yes">
+          <span class="box" aria-hidden="true"></span>
+          <span class="check-text">I would rather keep this private for now — happy to cover it on a call.</span>
+        </label>
+      </div>
+      <span class="err block-err" id="first-err"></span>
+    </fieldset>
+
+    <fieldset class="block" data-block="6">
+      <legend><span class="idx">06</span><span class="legend-text">Marketing &amp; go-to-market</span></legend>
+      <p class="block-hint">Are you running marketing — in-house, agency, or both?</p>
+      <div class="chip-grid" role="radiogroup" aria-label="Marketing" id="mkt-grid"></div>
+      <label class="field">
+        <span class="label">High-level GTM overview <b>*</b></span>
+        <textarea name="gtm" rows="6" data-required placeholder="Audience, channels, sequencing into TGE, who is running it, what is already live. A paragraph is fine."></textarea>
+        <span class="counter"><span data-count-for="gtm">0</span> characters</span>
+        <span class="err"></span>
+      </label>
+      <span class="err block-err" id="mkt-err"></span>
+    </fieldset>
+
+    <fieldset class="block" data-block="7">
+      <legend><span class="idx">07</span><span class="legend-text">Launch vertical</span></legend>
+      <div class="chip-grid" role="radiogroup" aria-label="Vertical" id="vert-grid"></div>
+      <label class="field other-field" id="vert-other-wrap" hidden>
+        <span class="label">Describe it <b>*</b></span>
+        <input type="text" name="vertical_other" placeholder="Your vertical">
+        <span class="err"></span>
+      </label>
+      <label class="field">
+        <span class="label">Anything else we should know <span class="opt">optional</span></span>
+        <textarea name="notes" rows="3" placeholder="Timing, constraints, existing partners, questions for us."></textarea>
+      </label>
+      <span class="err block-err" id="vert-err"></span>
+    </fieldset>
+
+    <div class="actions">
+      <button type="submit" class="submit" id="submit">
+        <span class="submit-text">Submit to DRK</span>
+        <span class="spinner" aria-hidden="true"></span>
+      </button>
+      <button type="button" class="ghost" id="clear">Clear form</button>
+      <p class="actions-note" id="form-status" role="status"></p>
+    </div>
+
+    <input type="text" name="_gotcha" tabindex="-1" autocomplete="off" aria-hidden="true" class="honeypot">
+  </form>
+
+  <section class="done" id="done" hidden aria-live="polite">
+    <p class="eyebrow">Received</p>
+    <h2>We will be in touch <em>shortly.</em></h2>
+    <p class="done-sub">Your submission is with the team. Expect a reply within two business days.</p>
+    <p class="done-contact">Anything urgent — <a href="mailto:nick@drkgroup.xyz">nick@drkgroup.xyz</a></p>
+    <button type="button" class="ghost" id="again">Submit another project</button>
+  </section>
+
+  <section class="fallback" id="fallback" hidden>
+    <p class="eyebrow warn">Send it manually</p>
+    <h2>One step left.</h2>
+    <p class="done-sub">We could not post this automatically. Your answers are safe below and still saved in this browser — send them across and we will pick it up from there.</p>
+    <div class="fallback-actions">
+      <a class="submit" id="mailto-link" href="#">Open in email</a>
+      <button type="button" class="ghost" id="copy">Copy submission</button>
+    </div>
+    <pre class="summary" id="summary" tabindex="0"></pre>
+  </section>
+</main>
+
+<footer class="footer">
+  <span>DRK</span>
+  <span>Own the liquidity. Manage the cycle.</span>
+  <a href="mailto:nick@drkgroup.xyz">nick@drkgroup.xyz</a>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

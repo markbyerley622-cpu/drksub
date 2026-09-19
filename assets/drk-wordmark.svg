@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 455 110" role="img" aria-labelledby="title">
+  <title id="title">DRK</title>
+  <g fill="#f7f7f7">
+    <path fill-rule="evenodd" d="M0 0h98c22 0 34 12 34 34v42c0 22-12 34-34 34H0V0Zm30 28v54h58c10 0 14-5 14-15V43c0-10-4-15-14-15H30Z"/>
+    <path fill-rule="evenodd" d="M150 0h99c22 0 33 11 33 32v12c0 17-7 27-22 31l28 35h-39l-25-33h-44v33h-30V0Zm30 28v23h62c7 0 10-3 10-10v-3c0-7-3-10-10-10h-62Z"/>
+    <path d="M306 0h30v40l45-40h43l-59 52 62 58h-44l-47-45v45h-30V0Z"/>
+  </g>
+  <circle cx="444" cy="96" r="11" fill="#00f07a"/>
+</svg>
