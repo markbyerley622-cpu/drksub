@@ -189,9 +189,27 @@
         <div class="step-in">
           <p class="eyebrow">Received</p>
           <h2 class="ask">We will be in touch <em>shortly.</em></h2>
-          <p class="done-sub">Your submission is with the team. Expect a reply within two business days.</p>
+          <p class="done-sub">Your submission is with the team and a receipt is on its way to your inbox. Expect a reply within two business days.</p>
+
+          <p class="done-warn" id="done-warn" role="status"></p>
+
+          <div class="tg-card" id="tg-wrap" hidden>
+            <p class="tg-title">Skip the wait</p>
+            <p class="tg-sub">Join the DRK Telegram and we will pick this up there.</p>
+            <a class="submit tg-open" id="tg-link" href="#" target="_blank" rel="noopener noreferrer">
+              <span>Open Telegram</span>
+              <svg viewBox="0 0 16 16" aria-hidden="true" width="14" height="14"><path d="M6 2l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </a>
+          </div>
+
+          <div class="done-next">
+            <a class="ghost" id="go-now" href="https://drkgroup.xyz">Continue to drkgroup.xyz</a>
+            <button type="button" class="linkish" id="stay">Give me a moment</button>
+          </div>
+          <p class="countdown" id="countdown" aria-live="polite"></p>
+
           <p class="done-contact">Anything urgent — <a href="mailto:nick@drkgroup.xyz">nick@drkgroup.xyz</a></p>
-          <button type="button" class="ghost" id="again">Submit another project</button>
+          <button type="button" class="linkish again" id="again">Submit another project</button>
         </div>
       </section>
 

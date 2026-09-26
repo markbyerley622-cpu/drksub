@@ -1,18 +1,28 @@
 /* DRK — Project Submission
- * Static, no build step, no backend.
- * Configure CONFIG.WEB3FORMS_KEY to post straight into your inbox.
- * With no key set, the form degrades to a prefilled email + copy-to-clipboard.
+ * Static, no build step. Submissions POST to /api/submit, which emails DRK,
+ * emails the applicant a receipt, and hands back the Telegram invite plus
+ * where to send them next. No keys live in here — that is the whole point.
+ * If the endpoint cannot be reached, the form degrades to a prefilled email
+ * + copy-to-clipboard so nothing entered is ever lost.
  */
 (function () {
   'use strict';
 
   var CONFIG = {
-    // Free key from https://web3forms.com (enter nick@drkgroup.xyz, paste the key here).
-    WEB3FORMS_KEY: '',
+    // Server-side handler. Holds the Resend key; this file never sees it.
+    ENDPOINT: '/api/submit',
     // Where manual/fallback submissions are addressed.
     INBOX: 'nick@drkgroup.xyz',
+    // Where we send people once they are through. The server can override.
+    REDIRECT: 'https://drkgroup.xyz',
+    // Long enough to read the confirmation and grab the Telegram link.
+    REDIRECT_DELAY: 12,
     STORAGE_KEY: 'drk-submission-v1'
   };
+
+  // Used as a cheap bot filter: a real person cannot clear seven screens in
+  // under three seconds. Sent to the server, never stored.
+  var OPENED_AT = Date.now();
 
   /* ---------------------------------------------------------------- logos */
   var LOGO = {
@@ -515,33 +525,131 @@
     var text = asText(rows);
     var btn = $('#next');
 
-    if (!CONFIG.WEB3FORMS_KEY) { showFallback(rows, text); return; }
-
     btn.disabled = true;
     btn.classList.add('is-sending');
     $('#next-text').textContent = 'Sending';
     status('', false);
 
-    var payload = { access_key: CONFIG.WEB3FORMS_KEY, subject: 'DRK submission — ' + val('project_name'), from_name: 'DRK Submission Form', replyto: val('email') };
-    rows.forEach(function (r) { payload[r[0]] = r[1]; });
+    var settled = false;
+    function release() {
+      if (settled) return;
+      settled = true;
+      btn.disabled = false;
+      btn.classList.remove('is-sending');
+      $('#next-text').textContent = 'Submit to DRK';
+    }
 
-    fetch('https://api.web3forms.com/submit', {
+    // Don't leave someone staring at a spinner on a dead connection.
+    var ctrl = window.AbortController ? new AbortController() : null;
+    var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, 20000);
+
+    fetch(CONFIG.ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(fields()),
+      signal: ctrl ? ctrl.signal : undefined
     })
-      .then(function (r) { return r.json(); })
       .then(function (r) {
-        if (!r.success) throw new Error(r.message || 'rejected');
-        wipe();
-        showEnding('done');
+        return r.json().catch(function () { return {}; }).then(function (body) {
+          return { status: r.status, ok: r.ok, body: body };
+        });
       })
-      .catch(function () { showFallback(rows, text); })
-      .finally(function () {
-        btn.disabled = false;
-        btn.classList.remove('is-sending');
-        $('#next-text').textContent = 'Submit to DRK';
+      .then(function (r) {
+        clearTimeout(timer);
+
+        // 422/429 are the server telling us something fixable. Keep the person
+        // on the form with the reason rather than dumping them into fallback.
+        if (r.status === 422 || r.status === 429) {
+          release();
+          status(r.body.error || 'That did not go through. Please check your answers.', true);
+          return;
+        }
+        if (!r.ok || !r.body.ok) throw new Error(r.body.error || 'rejected');
+
+        wipe();
+        finish(r.body);
+      })
+      .catch(function () {
+        clearTimeout(timer);
+        release();
+        showFallback(rows, text);
       });
+  }
+
+  /* Raw named values for the server, which does its own validation and builds
+   * the email itself — it does not trust anything formatted in here. */
+  function fields() {
+    return {
+      project_name: val('project_name'),
+      contact_name: val('contact_name'),
+      email: val('email'),
+      handle: val('handle'),
+      website: val('website'),
+      chain: state.chain,
+      chain_other: val('chain_other'),
+      launchpad: state.launchpad,
+      launchpad_other: val('launchpad_other'),
+      fdv: state.fdv,
+      fdv_exact: val('fdv_exact'),
+      first: state.first,
+      prior_products: state.first === 'No' ? val('prior_products') : '',
+      prior_private: !!$('[name=prior_private]').checked,
+      marketing: state.marketing,
+      gtm: val('gtm'),
+      vertical: state.vertical,
+      vertical_other: val('vertical_other'),
+      notes: val('notes'),
+      _gotcha: form.elements._gotcha.value,
+      elapsed_ms: Date.now() - OPENED_AT
+    };
+  }
+
+  /* Confirmation, then on to drkgroup.xyz. The Telegram link comes from the
+   * server so only people who actually submitted ever see it. */
+  function finish(res) {
+    var invite = res && res.telegram;
+    var dest = (res && res.redirect) || CONFIG.REDIRECT;
+
+    var tgWrap = $('#tg-wrap');
+    if (invite) {
+      $('#tg-link').href = invite;
+      tgWrap.hidden = false;
+    } else {
+      tgWrap.hidden = true;
+    }
+
+    // A failed receipt is worth saying out loud — we still have the submission.
+    if (res && res.warnings && res.warnings.indexOf('receipt') > -1) {
+      $('#done-warn').textContent =
+        'We have your submission, but the receipt email did not go out. Nothing further is needed from you.';
+    }
+
+    showEnding('done');
+
+    var go = $('#go-now');
+    go.href = dest;
+
+    var left = CONFIG.REDIRECT_DELAY;
+    var label = $('#countdown');
+    var tick = setInterval(function () {
+      left--;
+      if (left <= 0) {
+        clearInterval(tick);
+        label.textContent = 'Taking you there now.';
+        location.href = dest;
+        return;
+      }
+      label.textContent = 'Continuing to drkgroup.xyz in ' + left + 's.';
+    }, 1000);
+    label.textContent = 'Continuing to drkgroup.xyz in ' + left + 's.';
+
+    // Someone reading the confirmation or opening Telegram should not get
+    // yanked away mid-thought.
+    $('#stay').addEventListener('click', function () {
+      clearInterval(tick);
+      label.textContent = 'Staying put. Use the button above when you are ready.';
+      this.hidden = true;
+    });
   }
 
   form.addEventListener('submit', function (e) { e.preventDefault(); next(); });
