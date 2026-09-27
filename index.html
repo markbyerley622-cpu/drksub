@@ -180,6 +180,21 @@
             <span class="label">Anything else we should know <span class="opt">optional</span></span>
             <textarea name="notes" rows="3" placeholder="Timing, constraints, existing partners, questions for us."></textarea>
           </label>
+          <div class="grid-2">
+            <label class="field span-2">
+              <span class="label">Referred by <span class="opt">optional</span></span>
+              <input type="text" name="referral_name" placeholder="Who sent you our way?" autocomplete="off">
+            </label>
+            <label class="field">
+              <span class="label">Referrer Telegram <span class="opt">optional</span></span>
+              <input type="text" name="referral_telegram" placeholder="@handle" autocomplete="off">
+            </label>
+            <label class="field">
+              <span class="label">Referrer email <span class="opt">optional</span></span>
+              <input type="email" name="referral_email" placeholder="them@domain.xyz" autocomplete="off" inputmode="email">
+              <span class="err"></span>
+            </label>
+          </div>
           <span class="err block-err" id="vert-err"></span>
         </div>
       </section>

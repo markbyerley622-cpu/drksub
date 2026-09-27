@@ -310,6 +310,7 @@
     7: function () {
       if (!state.vertical) return [{ block: 'vert', msg: 'Pick a vertical' }];
       if (state.vertical === 'Other' && !val('vertical_other')) return [{ el: form.elements.vertical_other, msg: 'Required' }];
+      if (val('referral_email') && !validEmail(val('referral_email'))) return [{ el: form.elements.referral_email, msg: 'Check this email address' }];
       return [];
     }
   };
@@ -496,7 +497,10 @@
       ['Marketing', state.marketing || '—'],
       ['GTM overview', val('gtm')],
       ['Vertical', vert],
-      ['Notes', val('notes') || '—']
+      ['Notes', val('notes') || '—'],
+      ['Referred by', val('referral_name') || '—'],
+      ['Referrer Telegram', val('referral_telegram') || '—'],
+      ['Referrer email', val('referral_email') || '—']
     ];
   }
 
@@ -599,6 +603,9 @@
       vertical: state.vertical,
       vertical_other: val('vertical_other'),
       notes: val('notes'),
+      referral_name: val('referral_name'),
+      referral_telegram: val('referral_telegram'),
+      referral_email: val('referral_email'),
       _gotcha: form.elements._gotcha.value,
       elapsed_ms: Date.now() - OPENED_AT
     };

@@ -48,7 +48,8 @@ const CAPS = {
   project_name: 120, contact_name: 120, email: 200, handle: 120, website: 300,
   chain: 60, chain_other: 80, launchpad: 80, launchpad_other: 120,
   fdv: 60, fdv_exact: 40, first: 8, prior_products: 4000,
-  marketing: 80, gtm: 6000, vertical: 80, vertical_other: 120, notes: 4000
+  marketing: 80, gtm: 6000, vertical: 80, vertical_other: 120, notes: 4000,
+  referral_name: 120, referral_telegram: 120, referral_email: 200
 };
 
 const MAX_BODY = 64 * 1024;
@@ -129,7 +130,10 @@ function buildRows(f) {
     ['Marketing', f.marketing || '—'],
     ['GTM overview', f.gtm],
     ['Vertical', withOther(f.vertical, f.vertical_other)],
-    ['Notes', f.notes || '—']
+    ['Notes', f.notes || '—'],
+    ['Referred by', f.referral_name || '—'],
+    ['Referrer Telegram', f.referral_telegram || '—'],
+    ['Referrer email', f.referral_email || '—']
   ];
 }
 
@@ -153,6 +157,7 @@ function validate(f) {
   else if (f.gtm.length < 20) bad.push('The GTM overview needs a sentence or two.');
   if (!f.vertical) bad.push('Pick a vertical.');
   if (f.vertical === 'Other' && !f.vertical_other) bad.push('Describe your vertical.');
+  if (f.referral_email && !EMAIL_RE.test(f.referral_email)) bad.push('The referrer email does not look right.');
   return bad;
 }
 
@@ -263,7 +268,10 @@ async function notifyTelegram(rows) {
     'Chain: ' + line('Chain') + '\n' +
     'Launchpad: ' + line('Launchpad') + '\n' +
     'FDV: ' + line('Starting FDV') + '\n' +
-    'Vertical: ' + line('Vertical') + '\n\n' +
+    'Vertical: ' + line('Vertical') + '\n' +
+    'Referred by: ' + line('Referred by') + '\n' +
+    'Referrer Telegram: ' + line('Referrer Telegram') + '\n' +
+    'Referrer email: ' + line('Referrer email') + '\n\n' +
     'Full detail is in the email to ' + CONFIG.to.join(', ') + '.';
 
   const res = await fetch('https://api.telegram.org/bot' + CONFIG.botToken + '/sendMessage', {
